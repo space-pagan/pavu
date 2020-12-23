@@ -7,16 +7,18 @@
 #include "peakmonitor.h"
 #include "config.h"
 
-PeakMonitor::PeakMonitor(std::string sink_name, uint32_t rate) :
+PeakMonitor::PeakMonitor(std::string sink_name, bool is_sink, uint32_t rate) :
     sink_name(sink_name),
-    rate(rate)
+    rate(rate),
+    is_sink(is_sink)
 {
     pa_mainloop_init();
 }
 
-PeakMonitor::PeakMonitor(uint32_t index, uint32_t rate) :
+PeakMonitor::PeakMonitor(uint32_t index, bool is_sink, uint32_t rate) :
     sink_index(index),
-    rate(rate)
+    rate(rate),
+    is_sink(is_sink)
 {
     pa_mainloop_init();
 }
@@ -32,13 +34,22 @@ void PeakMonitor::pa_mainloop_init() {
 }
 
 void PeakMonitor::context_notify_cb(pa_context *c, void* userdata) {
+    PeakMonitor* pm = (PeakMonitor*)userdata;
     pa_context_state_t state = pa_context_get_state(c);
     if (state == PA_CONTEXT_READY) {
         if (!HIDE_PREAMBLE)
             std::cout << "Pulseaudio connection ready...\n\r";
-        pa_operation* o = pa_context_get_sink_info_list(
-                c, sink_info_cb, userdata);
-        pa_operation_unref(o);
+        if (pm->is_sink) {
+            std::cout << "Reading available sinks...\n\r";
+            pa_operation* o = pa_context_get_sink_info_list(
+                    c, sink_info_cb, userdata);
+            pa_operation_unref(o);
+        } else {
+            std::cout << "Reading available sources...\n\r";
+            pa_operation* o = pa_context_get_source_info_list(
+                    c, source_info_cb, userdata);
+            pa_operation_unref(o);
+        }
     } else if (state == PA_CONTEXT_FAILED) {
         std::cout << "Connection failed!\n\r";
     } else if (state == PA_CONTEXT_TERMINATED) {
@@ -49,7 +60,7 @@ void PeakMonitor::context_notify_cb(pa_context *c, void* userdata) {
 void PeakMonitor::sink_info_cb(pa_context *c, const pa_sink_info *i, 
         int eol, void* userdata) {
     PeakMonitor* pm = (PeakMonitor*)userdata;
-    if (i == NULL)
+    if (i == NULL || pm->is_connected)
         return;
 
     if (!HIDE_PREAMBLE) {
@@ -62,7 +73,7 @@ void PeakMonitor::sink_info_cb(pa_context *c, const pa_sink_info *i,
         std::cout << "description: " << i->description << "\n\r";
     }
 
-    if (!pm->sink_name.compare(i->name) || pm->sink_index == i->index) { // if i->name == sink_name
+    if (!pm->sink_name.compare(i->name)) { // if i->name == sink_name
         if (!HIDE_PREAMBLE) {
             std::cout << "\n\rSetting up peak recording using ";
             std::cout << i->monitor_source_name << "\n\r\n\r";
@@ -82,6 +93,47 @@ void PeakMonitor::sink_info_cb(pa_context *c, const pa_sink_info *i,
         pa_stream_connect_record(
                 stream, i->monitor_source_name, nullptr, 
                 PA_STREAM_PEAK_DETECT);
+        pm->is_connected = true;
+    }
+}
+
+void PeakMonitor::source_info_cb(pa_context *c, const pa_source_info *i, 
+        int eol, void* userdata) {
+    PeakMonitor* pm = (PeakMonitor*)userdata;
+    if (i == NULL || pm->is_connected)
+        return;
+
+    if (!HIDE_PREAMBLE) {
+        char temp[61];
+        memset(temp, '-', 60);
+        temp[60] = '\0';
+        std::cout << temp << "\n\r";
+        std::cout << "index: " << i->index << "\n\r";
+        std::cout << "name:  " << i->name << "\n\r";
+        std::cout << "description: " << i->description << "\n\r";
+    }
+
+    if (!pm->sink_name.compare(i->name)) { // if i->name == sink_name
+        if (!HIDE_PREAMBLE) {
+            std::cout << "\n\rSetting up peak recording using ";
+            std::cout << i->name << "\n\r\n\r";
+            std::cout << "(Press q to exit at any time)\n\r\n\r";
+        }
+
+        pa_sample_spec spec = pa_sample_spec{
+            .format = PA_SAMPLE_U8,
+            .rate = pm->rate,
+            .channels = 1
+        };
+
+        pa_stream* stream = pa_stream_new(
+                c, "Peak Detect Demo", &spec, nullptr);
+        pa_stream_set_read_callback(
+                stream, stream_rq_cb, userdata);
+        pa_stream_connect_record(
+                stream, i->name, nullptr, 
+                PA_STREAM_PEAK_DETECT);
+        pm->is_connected = true;
     }
 }
 

@@ -15,11 +15,12 @@ int main(int argc, char** argv) {
     initscr();
     cbreak();
     noecho();
-    timeout(20);
+    timeout(1000 / METER_RATE); // in ms
     curs_set(0);
 
     // PeakMonitor monitor = PeakMonitor(SINK_NAME, METER_RATE);
-    PeakMonitor monitor = PeakMonitor(1, METER_RATE);
+    PeakMonitor monitor = 
+        PeakMonitor("alsa_input.pci-0000_00_1f.3.analog-stereo", 0, METER_RATE);
 
     while(!0) {
         // keep these scoped so that window can be resized
@@ -45,6 +46,7 @@ int main(int argc, char** argv) {
         while (monitor.q.size()) {
             // calculate the bar and draw it
             int sample = monitor.q.front() * SCALE_PAVU;
+            if (sample > 128) sample = 128;
             monitor.q.pop();
 
             // convert proportions of volume from x/128 to y/width
@@ -64,7 +66,7 @@ int main(int argc, char** argv) {
                 printf("%c%s%s%c\r", BRACKETS[0], bar, spaces, BRACKETS[1]);
             } else {
                 printf("%3d%% %c%s%s%c\r", 
-                        sample, BRACKETS[0], bar, spaces, BRACKETS[1]);
+                        (int)((float)sample * 100.0f / 128.0f), BRACKETS[0], bar, spaces, BRACKETS[1]);
             }
             std::cout << std::flush;
         }
