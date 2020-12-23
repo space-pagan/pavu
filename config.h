@@ -1,0 +1,11 @@
+static const int METER_RATE = 50; // Hz
+static const int METER_WIDTH = 100; // columns
+static const bool FIT_TO_WIDTH = false; // overrides METER_WIDTH
+static const bool FIT_ON_RESIZE = true; // FIT_TO_WIDTH but only if the terminal is narrowed to less than METER_WIDTH columns. Otherwise uses METER_WIDTH
+static const bool HIDE_PERCENTAGE = false; // hides the vu percentage
+static const bool HIDE_PREAMBLE = true; // hides connection messages
+static const char QUIT_CH = 'q';
+static const char VOLUME_CH = '|';
+static const char SILENCE_CH = '-';
+static const char PEAK_CH = '*';
+static const char BRACKETS[2] = {'[', ']'};
