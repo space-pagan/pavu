@@ -9,3 +9,4 @@ static const char VOLUME_CH = '|';
 static const char SILENCE_CH = '-';
 static const char PEAK_CH = '*';
 static const char BRACKETS[2] = {'[', ']'};
+static const float SCALE_PAVU = 3.0f;

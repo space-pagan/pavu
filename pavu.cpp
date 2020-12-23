@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
         }
         while (monitor.q.size()) {
             // calculate the bar and draw it
-            int sample = monitor.q.front();
+            int sample = monitor.q.front() * SCALE_PAVU;
             monitor.q.pop();
 
             // convert proportions of volume from x/128 to y/width
